@@ -124,8 +124,12 @@ def build_chart(view: pd.DataFrame, levels: dict) -> go.Figure:
     fig.update_layout(
         height=760, margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
         xaxis_rangeslider_visible=False,
-        legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="right", x=1),
+        # chú thích đặt bên trái để không đè thanh công cụ của biểu đồ (góc phải)
+        legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="left", x=0),
     )
+    fig.update_xaxes(hoverformat="%d/%m/%Y")
+    fig.update_yaxes(hoverformat=",.2f")
+    fig.update_yaxes(hoverformat=",.0f", row=2, col=1)
     fig.update_yaxes(range=[0, 100], row=3, col=1)
     return fig
 
