@@ -66,6 +66,13 @@ def fmt(v, digits=2) -> str:
     return "—" if v is None or pd.isna(v) else f"{v:,.{digits}f}"
 
 
+def fmt_volume(v) -> str:
+    """Khối lượng dạng gọn để không tràn ô trên màn hình hẹp: 13,395,100 -> '13.40 tr'."""
+    if v is None or pd.isna(v):
+        return "—"
+    return f"{v / 1e6:,.2f} tr" if v >= 1e6 else f"{v:,.0f}"
+
+
 def price_info(r: dict) -> tuple[float, float]:
     """Giá & % thay đổi: ưu tiên báo giá realtime, dự phòng bằng nến gần nhất."""
     df, q = r["df"], r["quote"] or {}
@@ -159,7 +166,8 @@ def render_symbol(symbol: str, r: dict, days: int):
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Giá (nghìn đồng)", fmt(price), f"{change_pct:+.2f}%")
-    c2.metric("Khối lượng", fmt(q.get("volume") or last["volume"], 0))
+    volume = q.get("volume") or last["volume"]
+    c2.metric("Khối lượng", fmt_volume(volume), help=f"{fmt(volume, 0)} cổ phiếu")
     high = q.get("high") or last["high"]
     low = q.get("low") or last["low"]
     # giá thấp đặt ở dòng phụ để giá trị ngắn, không bị cắt chữ trên màn hình hẹp
