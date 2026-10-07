@@ -1,0 +1,24 @@
+# App trading chạy cạnh ppmeeting, dùng chung mạng Docker để Nginx của ppmeeting chuyển tiếp tới.
+# Dùng: docker compose -f deploy/docker-compose.yml up -d --build
+name: trading
+
+services:
+  trading-app:
+    build:
+      context: ..
+    container_name: trading-app
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    networks:
+      - ppmeeting_default
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ppmeeting_default:
+    external: true

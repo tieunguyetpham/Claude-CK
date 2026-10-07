@@ -4,7 +4,7 @@ Dashboard web phân tích kỹ thuật cổ phiếu Việt Nam, viết bằng Py
 Dữ liệu lấy trực tiếp từ API công khai của **SSI iBoard** (lịch sử giá + báo giá realtime).
 
 - Repo: https://github.com/tieunguyetpham/Claude-CK
-- Địa chỉ triển khai: https://tieunguyetpham.store/trading
+- Địa chỉ triển khai: https://trading.tieunguyetpham.store
 
 > ⚠️ Thông tin chỉ mang tính tham khảo, không phải khuyến nghị đầu tư. Ứng dụng **không** đặt lệnh và **không** kết nối tài khoản giao dịch.
 
@@ -27,7 +27,7 @@ Dữ liệu lấy trực tiếp từ API công khai của **SSI iBoard** (lịch
 | `analysis.py` | Chấm điểm tín hiệu, sinh nhận định |
 | `symbols.py` | Danh sách VN50, ngân hàng; kiểm tra mã người dùng nhập |
 | `tests/` | Kiểm thử đầu vào (`python -m pytest -q`) |
-| `deploy/` | File cấu hình & script triển khai VPS |
+| `Dockerfile`, `deploy/` | Đóng gói Docker, cấu hình Nginx & script triển khai VPS |
 | `prompt.docx` | Prompt mô tả yêu cầu phần mềm |
 
 ## Chạy trên máy (Windows)
@@ -42,26 +42,51 @@ venv\Scripts\python -m streamlit run app.py
 
 Mở http://localhost:8501. Chạy kiểm thử: `venv\Scripts\python -m pip install -r requirements-dev.txt` rồi `venv\Scripts\python -m pytest -q`.
 
-## Triển khai trên VPS (Ubuntu 24.04)
+## Triển khai trên VPS
 
-1. **Trỏ tên miền**: tại nhà cung cấp tên miền, tạo bản ghi `A` cho `tieunguyetpham.store` và `www` trỏ về IP của VPS. Kiểm tra: `ping tieunguyetpham.store` ra đúng IP.
-2. **Cài app** (SSH vào VPS):
+VPS `116.118.6.222` (Ubuntu 24.04) đang chạy **ppmeeting** bằng Docker; container `ppmeeting-nginx-1` giữ cổng 80/443.
+App trading chạy trong **container riêng** `trading-app` (giới hạn 512 MB RAM), cùng mạng Docker `ppmeeting_default`.
+Nginx của ppmeeting chuyển tiếp tên miền con `trading.tieunguyetpham.store` tới container này. Không cài Nginx riêng.
+
+### Cài lần đầu (một lần)
+
+1. **DNS**: bản ghi `A` của `trading.tieunguyetpham.store` trỏ về `116.118.6.222` (đã có).
+2. **Quyền đọc repo** (repo Private): tạo deploy key chỉ-đọc trên VPS và thêm vào GitHub → *Settings → Deploy keys*.
    ```bash
-   git clone https://github.com/tieunguyetpham/Claude-CK.git /opt/Claude-CK
-   sudo bash /opt/Claude-CK/deploy/deploy.sh
+   ssh-keygen -t ed25519 -N "" -C "vps-deploy-Claude-CK" -f ~/.ssh/claude_ck_deploy
    ```
-   Script tự cài Python/Nginx/Certbot, tạo user `trading`, cài thư viện, chạy app bằng systemd (cổng nội bộ 8501, sub-path `/trading`) và cấu hình Nginx reverse proxy có WebSocket.
-3. **Bật HTTPS** (một lần, sau khi DNS đã trỏ đúng):
+   Trong `~/.ssh/config` của VPS:
+   ```
+   Host github-claude-ck
+       HostName github.com
+       User git
+       IdentityFile ~/.ssh/claude_ck_deploy
+       IdentitiesOnly yes
+   ```
+   Rồi: `sudo mkdir -p /opt/Claude-CK && sudo chown $USER: /opt/Claude-CK && git clone git@github-claude-ck:tieunguyetpham/Claude-CK.git /opt/Claude-CK`
+3. **Chạy app**: `bash /opt/Claude-CK/deploy/deploy.sh`
+4. **Chứng chỉ HTTPS**: bổ sung `trading` vào chứng chỉ có sẵn của ppmeeting (Nginx ppmeeting dừng vài giây để certbot dùng cổng 80):
    ```bash
-   sudo certbot --nginx -d tieunguyetpham.store -d www.tieunguyetpham.store
+   sudo certbot certonly --standalone --cert-name tieunguyetpham.store --expand \
+     -d tieunguyetpham.store -d www.tieunguyetpham.store -d trading.tieunguyetpham.store \
+     --pre-hook  /etc/letsencrypt/renewal-hooks/pre/ppmeeting.sh \
+     --deploy-hook /etc/letsencrypt/renewal-hooks/deploy/ppmeeting.sh \
+     --post-hook /etc/letsencrypt/renewal-hooks/post/ppmeeting.sh
    ```
-4. Truy cập https://tieunguyetpham.store/trading
+   Các lần gia hạn sau dùng lại cơ chế tự động có sẵn của ppmeeting.
+5. **Nginx**: sao lưu `/opt/ppmeeting/infra/nginx/nginx.conf`, chèn nội dung `deploy/nginx-trading.conf` vào trong khối `http { }`, rồi:
+   ```bash
+   sudo docker exec ppmeeting-nginx-1 nginx -t && sudo docker exec ppmeeting-nginx-1 nginx -s reload
+   ```
+6. Truy cập https://trading.tieunguyetpham.store
 
-**Cập nhật phiên bản mới**: `sudo bash /opt/Claude-CK/deploy/deploy.sh` (tự `git pull` và khởi động lại).
+### Vận hành
 
-**Xem log / khởi động lại**: `journalctl -u trading -n 100 -f` · `sudo systemctl restart trading`
-
-Nếu VPS đã có cấu hình Nginx cho tên miền, script sẽ không ghi đè mà nhắc thêm dòng `include snippets/trading.conf;` vào server block hiện có.
+- **Cập nhật phiên bản mới**: `bash /opt/Claude-CK/deploy/deploy.sh` (tự `git pull`, build lại, chờ app sẵn sàng).
+- **Xem log**: `sudo docker logs -f --tail 100 trading-app` · **Khởi động lại**: `sudo docker restart trading-app`
+- Container trading dừng không ảnh hưởng ppmeeting (Nginx phân giải tên container lúc có request).
+- Lưu ý: khi chạy `docker compose down` cho ppmeeting, hãy dừng trading trước
+  (`sudo docker compose -f /opt/Claude-CK/deploy/docker-compose.yml down`) vì hai bên dùng chung mạng `ppmeeting_default`.
 
 ## Giới hạn dữ liệu
 
