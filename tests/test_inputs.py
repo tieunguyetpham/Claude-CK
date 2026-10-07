@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from analysis import analyze  # noqa: E402
 from indicators import add_indicators, rsi, support_resistance  # noqa: E402
-from symbols import BANKS, VN50, parse_symbols  # noqa: E402
+from symbols import BANKS, DEFAULT_SYMBOLS, VN50_FALLBACK, parse_symbols  # noqa: E402
 
 
 # ------------------------------------------------------------ mã người dùng nhập
@@ -42,10 +42,12 @@ def test_parse_symbols(selected, typed, valid, invalid):
 
 
 def test_symbol_lists():
-    assert len(VN50) == 50 and len(set(VN50)) == 50
+    assert len(VN50_FALLBACK) == 50 and len(set(VN50_FALLBACK)) == 50
     assert len(set(BANKS)) == len(BANKS)
-    for s in VN50 + BANKS:
+    for s in VN50_FALLBACK + BANKS:
         assert parse_symbols([], s) == ([s], [])
+    # mã mặc định luôn có trong danh sách dự phòng (multiselect báo lỗi nếu default không thuộc options)
+    assert set(DEFAULT_SYMBOLS) <= set(VN50_FALLBACK) | set(BANKS)
 
 
 # ------------------------------------------------------------ dữ liệu giá bất thường

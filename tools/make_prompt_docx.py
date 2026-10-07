@@ -84,15 +84,21 @@ bullets([
     "Lấy khoảng 3 năm lịch sử để MA200 đủ dữ liệu, chỉ cắt theo khoảng thời gian người dùng chọn khi vẽ.",
     "Ghép báo giá realtime vào nến cuối (thêm nến phiên hôm nay hoặc cập nhật nến cùng ngày) để phân tích luôn dùng "
     "giá mới nhất trong phiên, khớp với giá đang hiển thị.",
-    "Cache bằng st.cache_data (TTL 5 phút) nhưng KHÔNG lưu cache kết quả lỗi mạng (lỗi tạm thời phải thử lại ngay).",
+    "Cache bằng st.cache_data (TTL 5 phút, giới hạn 64 mục để không phình RAM khi nhiều người dùng) nhưng KHÔNG lưu "
+    "cache kết quả lỗi mạng (lỗi tạm thời phải thử lại ngay).",
     "Tải nhiều mã song song bằng ThreadPoolExecutor; mỗi luồng dùng requests.Session riêng (threading.local).",
 ])
 
 h("3. Danh sách mã")
 bullets([
-    "Rổ VN50: 30 mã VN30 + 20 mã vốn hóa lớn, thanh khoản cao trên HOSE.",
-    "Nhóm ngân hàng: các ngân hàng niêm yết trên HOSE, HNX, UPCoM (VCB, BID, CTG, TCB, MBB, ACB, VPB, HDB, STB, TPB, "
-    "SHB, VIB, LPB, SSB, EIB, MSB, OCB, NAB, ABB, BVB, KLB, VAB, BAB, SGB, PGB).",
+    "Rổ VN50 = chỉ số VNX50 (50 mã lớn nhất HOSE + HNX). SSI không có nhóm tên \"VN50\" (trả rỗng). Lấy thành phần "
+    "trực tiếp: GET https://iboard-query.ssi.com.vn/stock/group/VNX50 → data[].stockSymbol; cache 6 giờ để tự cập nhật "
+    "khi rổ cơ cấu lại. Kèm danh sách dự phòng (snapshot) khi API lỗi; không lưu cache khi phải dùng dự phòng.",
+    "Lọc kết quả rổ: chỉ nhận chuỗi 3–10 ký tự A–Z/0–9 (giá trị None không được thành mã \"NONE\"); dưới 20 mã coi như lỗi.",
+    "Không tự soạn tay danh sách rổ chỉ số: danh sách tự soạn dễ lỗi thời (đã kiểm chứng lệch 11/50 mã so với VNX50).",
+    "Nhóm ngân hàng (27 mã, HOSE/HNX/UPCoM): VCB, BID, CTG, TCB, MBB, ACB, VPB, HDB, STB, TPB, SHB, VIB, LPB, SSB, "
+    "EIB, MSB, OCB, NAB, ABB, BVB, KLB, VAB, BAB, SGB, PGB, NVB, VBB.",
+    "Mã mặc định trong ô chọn phải thuộc danh sách lựa chọn (nếu không Streamlit báo lỗi).",
     "Trước khi dùng, chạy kiểm tra để chắc chắn mọi mã trong danh sách đều lấy được dữ liệu mới nhất.",
 ])
 
@@ -109,7 +115,11 @@ bullets([
     "Thanh bên: multiselect rổ VN50 & ngân hàng (đánh dấu mã ngân hàng), ô nhập mã khác, chọn khoảng "
     "3 tháng / 6 tháng / 1 năm / 2 năm, nút \"Làm mới dữ liệu\".",
     "Đầu trang: tiêu đề, cảnh báo miễn trừ trách nhiệm, thời điểm lấy dữ liệu + nguồn.",
-    "Nhiều mã: bảng so sánh nhanh (giá, % thay đổi, RSI, điểm, nhận định).",
+    "Nhiều mã: bảng so sánh nhanh, cột quan trọng trước để không bị khuất trên điện thoại: mã, nhận định, giá, "
+    "% thay đổi, điểm, RSI.",
+    "Ô chỉ số không được tràn chữ ở mọi kích thước (điện thoại 375px, máy tính bảng 800px, máy tính 1400px): khối lượng "
+    "dạng gọn \"13.40 tr\" (số đầy đủ trong chú thích), giá thấp phiên ở dòng phụ, cỡ chữ co theo độ rộng ô (CSS "
+    "container query). Biểu đồ: chú thích không đè thanh công cụ, ngày dd/mm/yyyy, số làm tròn khi rê chuột.",
     "Mỗi mã một tab: thẻ tóm tắt (giá, %, khối lượng, cao/thấp, vốn hóa) → hộp nhận định (xanh MUA / vàng GIỮ / đỏ BÁN) "
     "kèm lý do → biểu đồ → bảng chỉ báo, hỗ trợ/kháng cự, nút tải CSV (utf-8-sig để Excel đọc đúng tiếng Việt).",
     "Biểu đồ Plotly 4 tầng: nến + MA20/50/200 + Bollinger + đường hỗ trợ/kháng cự; khối lượng; RSI (mốc 30/70); "
@@ -158,7 +168,9 @@ code("app.py            giao diện Streamlit\n"
 
 h("10. Kiểm thử trước khi bàn giao")
 bullets([
-    "Quét toàn bộ mã VN50 + ngân hàng: lấy được dữ liệu, ngày mới nhất, giá realtime khớp biểu đồ, không có giá ≤ 0.",
+    "Quét toàn bộ mã VNX50 + ngân hàng: lấy được dữ liệu, ngày mới nhất, giá realtime khớp biểu đồ, không có giá ≤ 0.",
+    "Giả lập tình huống biên trên giao diện: báo giá lỗi nhưng có lịch sử; mã mới niêm yết 1, 2, 30 phiên; không lấy "
+    "được thành phần rổ (dùng dự phòng, lần sau thử lại).",
     "pytest cho: chuỗi rỗng, chữ thường, trùng mã, ký tự đặc biệt, chữ có dấu, chuỗi dài; dữ liệu 1 phiên, 2 phiên, "
     "giá đứng yên, chỉ tăng, chỉ giảm, khối lượng 0; ghép báo giá realtime (phiên mới, cùng phiên, báo giá cũ, "
     "chưa khớp lệnh, ngày sai định dạng).",

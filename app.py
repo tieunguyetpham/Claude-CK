@@ -10,17 +10,18 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from analysis import analyze
-from data import NETWORK_ERROR, fetch_history, fetch_quote, merge_quote
+from data import NETWORK_ERROR, fetch_group, fetch_history, fetch_quote, merge_quote
 from indicators import add_indicators, support_resistance
-from symbols import BANKS, VN50, is_bank, parse_symbols
+from symbols import BANKS, DEFAULT_SYMBOLS, VN50_FALLBACK, VN50_GROUP, is_bank, parse_symbols
 
 st.set_page_config(page_title="Phân tích CK VN50 & Ngân hàng", page_icon="📈", layout="wide")
 
 VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 CACHE_TTL = 300  # giây: dữ liệu tự làm mới sau 5 phút
+BASKET_TTL = 6 * 3600  # thành phần rổ ít thay đổi
+MAX_CACHE_ENTRIES = 64  # giới hạn RAM: mỗi mục (≤10 mã) khoảng 1–2 MB
 MAX_SYMBOLS = 10
 PERIODS = {"3 tháng": 90, "6 tháng": 180, "1 năm": 365, "2 năm": 730}
-ALL_SYMBOLS = sorted(set(VN50) | set(BANKS))
 DISCLAIMER = (
     "⚠️ Thông tin chỉ mang tính tham khảo, không phải khuyến nghị đầu tư. "
     "Nhà đầu tư tự chịu trách nhiệm với quyết định của mình."
@@ -54,7 +55,21 @@ def _load_one(symbol: str) -> dict:
         return {"error": f"Lỗi khi phân tích {symbol}: {e}"}
 
 
-@st.cache_data(ttl=CACHE_TTL, show_spinner=False)
+@st.cache_data(ttl=BASKET_TTL, show_spinner=False)
+def _load_basket_cached() -> tuple[list, bool]:
+    symbols, err = fetch_group(VN50_GROUP)
+    return (symbols, True) if symbols else (VN50_FALLBACK, False)
+
+
+def load_basket() -> tuple[list, bool]:
+    """Thành phần rổ VN50 (VNX50) từ SSI; lỗi thì dùng danh sách dự phòng và thử lại ở lần sau."""
+    symbols, live = _load_basket_cached()
+    if not live:
+        _load_basket_cached.clear()
+    return symbols, live
+
+
+@st.cache_data(ttl=CACHE_TTL, max_entries=MAX_CACHE_ENTRIES, show_spinner=False)
 def _load_many_cached(symbols: tuple) -> tuple[dict, datetime]:
     with ThreadPoolExecutor(max_workers=min(8, len(symbols))) as pool:
         results = list(pool.map(_load_one, symbols))
@@ -228,14 +243,22 @@ def comparison_table(ok: dict) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------- giao diện
+basket, basket_live = load_basket()
+all_symbols = sorted(set(basket) | set(BANKS))
+
 with st.sidebar:
     st.header("Chọn cổ phiếu")
     selected = st.multiselect(
         "Rổ VN50 & Ngân hàng",
-        ALL_SYMBOLS,
-        default=["VCB", "FPT", "HPG"],
+        all_symbols,
+        # mã mặc định phải nằm trong danh sách, nếu không Streamlit báo lỗi
+        default=[s for s in DEFAULT_SYMBOLS if s in all_symbols],
         format_func=lambda s: f"{s} · NH" if is_bank(s) else s,
         placeholder="Chọn mã...",
+    )
+    st.caption(
+        f"Rổ VN50 = chỉ số {VN50_GROUP} ({len(basket)} mã), "
+        + ("cập nhật từ SSI." if basket_live else "dùng danh sách lưu sẵn (chưa kết nối được SSI).")
     )
     typed = st.text_input("Hoặc nhập mã khác", placeholder="VD: TCB, MWG")
     period = st.radio("Khoảng thời gian", list(PERIODS), index=2, horizontal=True)

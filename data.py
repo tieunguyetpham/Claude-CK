@@ -5,6 +5,7 @@
 Mọi hàm đều không ném lỗi ra ngoài: trả về (dữ liệu, None) hoặc (None, "thông báo lỗi").
 """
 
+import re
 import threading
 import time
 from datetime import datetime
@@ -14,6 +15,7 @@ import requests
 
 HISTORY_URL = "https://iboard-api.ssi.com.vn/statistics/charts/history"
 QUOTE_URL = "https://iboard-query.ssi.com.vn/stock/{symbol}"
+GROUP_URL = "https://iboard-query.ssi.com.vn/stock/group/{group}"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     "Accept": "application/json",
@@ -46,6 +48,24 @@ def _get_json(url: str, params: dict | None = None) -> dict:
             if attempt < RETRIES:
                 time.sleep(0.8 * (attempt + 1))
     raise RuntimeError(f"{NETWORK_ERROR} ({last_err.__class__.__name__})")
+
+
+def fetch_group(group: str, min_size: int = 20) -> tuple[list[str] | None, str | None]:
+    """Thành phần của một rổ chỉ số (VD: VNX50, VN30). Trả danh sách mã đã sắp xếp."""
+    try:
+        payload = _get_json(GROUP_URL.format(group=group))
+    except RuntimeError as e:
+        return None, str(e)
+    rows = (payload or {}).get("data")
+    if not isinstance(rows, list):
+        return None, f"Dữ liệu rổ {group} không hợp lệ"
+    raw = (r.get("stockSymbol") for r in rows if isinstance(r, dict))
+    # chỉ nhận chuỗi thật (None không được biến thành mã "NONE")
+    symbols = sorted({s.upper() for s in raw if isinstance(s, str) and re.fullmatch(r"[A-Za-z0-9]{3,10}", s)})
+    # Rổ quá ít mã -> nhiều khả năng API trả thiếu, không dùng
+    if len(symbols) < min_size:
+        return None, f"Rổ {group} chỉ có {len(symbols)} mã"
+    return symbols, None
 
 
 def fetch_history(symbol: str, days: int = 1100) -> tuple[pd.DataFrame | None, str | None]:

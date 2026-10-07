@@ -1,24 +1,26 @@
-"""Danh sách mã cổ phiếu: rổ VN50 (50 mã vốn hóa lớn, thanh khoản cao) và nhóm ngân hàng."""
+"""Danh sách mã cổ phiếu: rổ VN50 (chỉ số VNX50 — 50 mã lớn nhất HOSE + HNX) và nhóm ngân hàng."""
 
 import re
 
-# VN30 + 20 mã vốn hóa lớn, thanh khoản cao khác trên HOSE
-VN50 = [
-    "ACB", "BCM", "BID", "BVH", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG",
-    "LPB", "MBB", "MSN", "MWG", "PLX", "SAB", "SHB", "SSB", "SSI", "STB",
-    "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE",
-    "DGC", "EIB", "FRT", "GEX", "HCM", "KBC", "KDH", "MSB", "NLG", "OCB",
-    "PNJ", "POW", "REE", "VCI", "VND", "DCM", "DPM", "VHC", "HSG", "VCG",
+# Rổ VN50 lấy trực tiếp từ SSI (nhóm VNX50) để tự cập nhật khi rổ được cơ cấu lại.
+# Danh sách dưới đây chỉ dùng dự phòng khi API lỗi — thành phần VNX50 tại ngày 07/10/2026.
+VN50_GROUP = "VNX50"
+VN50_FALLBACK = [
+    "ACB", "BID", "BSR", "CTG", "DCM", "DPM", "DXG", "EIB", "FPT", "FRT",
+    "GEE", "GEX", "GMD", "HCM", "HDB", "HPG", "IDC", "KBC", "KDH", "LPB",
+    "MBB", "MSB", "MSN", "MWG", "NLG", "NVL", "PDR", "PLX", "PNJ", "POW",
+    "PVS", "SHB", "SHS", "SSI", "STB", "TCB", "TPB", "VCB", "VCG", "VCI",
+    "VHM", "VIB", "VIC", "VIX", "VJC", "VND", "VNM", "VPB", "VPI", "VRE",
 ]
 
 # Ngân hàng niêm yết (HOSE, HNX, UPCoM)
 BANKS = [
     "VCB", "BID", "CTG", "TCB", "MBB", "ACB", "VPB", "HDB", "STB", "TPB",
     "SHB", "VIB", "LPB", "SSB", "EIB", "MSB", "OCB", "NAB", "ABB", "BVB",
-    "KLB", "VAB", "BAB", "SGB", "PGB",
+    "KLB", "VAB", "BAB", "SGB", "PGB", "NVB", "VBB",
 ]
 
-GROUPS = {"Rổ VN50": VN50, "Ngân hàng": BANKS}
+DEFAULT_SYMBOLS = ["VCB", "FPT", "HPG"]
 
 
 def is_bank(symbol: str) -> bool:

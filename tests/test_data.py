@@ -4,10 +4,57 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from data import merge_quote  # noqa: E402
+import data  # noqa: E402
+from data import fetch_group, merge_quote  # noqa: E402
+
+
+# ------------------------------------------------------------ thành phần rổ
+def fake_rows(n):
+    return {"data": [{"stockSymbol": f"A{i:02d}"} for i in range(n)]}
+
+
+@pytest.mark.parametrize(
+    "payload, ok",
+    [
+        (fake_rows(50), True),
+        (fake_rows(5), False),                    # quá ít mã -> nghi API trả thiếu
+        ({"data": None}, False),
+        ({"data": "abc"}, False),
+        ({}, False),
+        (None, False),
+    ],
+)
+def test_fetch_group_payloads(monkeypatch, payload, ok):
+    monkeypatch.setattr(data, "_get_json", lambda *a, **k: payload)
+    symbols, err = fetch_group("VNX50")
+    assert (symbols is not None) == ok
+    assert (err is None) == ok
+
+
+def test_fetch_group_cleans_symbols(monkeypatch):
+    rows = fake_rows(25)["data"] + [{"stockSymbol": "acb"}, {"stockSymbol": "A00"}, {"stockSymbol": "<x>"},
+                                    {"stockSymbol": None}, {}, "rác"]
+    monkeypatch.setattr(data, "_get_json", lambda *a, **k: {"data": rows})
+    symbols, err = fetch_group("VNX50")
+    assert err is None
+    assert "ACB" in symbols and "<X>" not in symbols and "NONE" not in symbols
+    assert symbols == sorted(set(symbols))
+
+
+def test_fetch_group_network_error(monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError(f"{data.NETWORK_ERROR} (ConnectionError)")
+
+    monkeypatch.setattr(data, "_get_json", boom)
+    symbols, err = fetch_group("VNX50")
+    assert symbols is None and err.startswith(data.NETWORK_ERROR)
+
+
+# ------------------------------------------------------------ ghép báo giá realtime
 
 
 def history():
