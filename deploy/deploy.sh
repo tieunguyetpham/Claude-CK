@@ -12,7 +12,7 @@ if [[ "${TRADING_DEPLOY_PULLED:-}" != 1 ]]; then
     # Chạy lại bản deploy.sh vừa kéo về (bash vẫn đang chạy nội dung cũ của file này)
     TRADING_DEPLOY_PULLED=1 exec bash "$APP_DIR/deploy/deploy.sh" "$@"
 fi
-echo "    code: $(git log -1 --format='%h %s')"
+echo "    phiên bản code: $(git log -1 --format='%h %s')"
 
 echo "==> 2/3 Build và chạy container trading-app"
 sudo docker compose -f deploy/docker-compose.yml up -d --build
