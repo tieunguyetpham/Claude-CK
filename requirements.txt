@@ -1,0 +1,7 @@
+# Phiên bản đã kiểm thử (Python 3.12). Yêu cầu Python >= 3.11 (do pandas 3).
+streamlit==1.65.0
+pandas==3.0.6
+numpy==2.5.3
+plotly==7.1.0
+requests==2.34.2
+tzdata==2026.5

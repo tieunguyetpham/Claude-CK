@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Môi trường ảo
+venv/
+.venv/
+
+# Bí mật / cấu hình cục bộ
+.env
+.env.*
+*.env
+.streamlit/secrets.toml
+*.pem
+*.key
+
+# Dữ liệu xuất ra, file tạm
+*.csv
+~$*.docx
+.DS_Store
+Thumbs.db
+
+# Cấu hình riêng của Claude Code
+.claude/
