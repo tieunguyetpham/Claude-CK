@@ -1,4 +1,4 @@
-# 📈 Phân tích cổ phiếu VN50 & Ngân hàng
+# 📈 Phân tích cổ phiếu VN100 & Ngân hàng
 
 Dashboard web phân tích kỹ thuật cổ phiếu Việt Nam, viết bằng Python + Streamlit.
 Dữ liệu lấy trực tiếp từ API công khai của **SSI iBoard** (lịch sử giá + báo giá realtime).
@@ -10,8 +10,9 @@ Dữ liệu lấy trực tiếp từ API công khai của **SSI iBoard** (lịch
 
 ## Tính năng
 
-- Chọn nhanh mã trong **rổ VN50** (chỉ số **VNX50** — 50 mã lớn nhất HOSE + HNX, thành phần lấy trực tiếp từ SSI
-  nên tự cập nhật khi rổ cơ cấu lại; có danh sách dự phòng khi API lỗi) và **27 ngân hàng niêm yết**, hoặc gõ mã bất kỳ (tối đa 10 mã/lần).
+- Chọn nhanh mã trong **rổ VN100** (100 mã vốn hóa lớn nhất HOSE, thành phần lấy trực tiếp từ SSI nên tự cập nhật
+  khi rổ cơ cấu lại; có danh sách dự phòng khi API lỗi) và **27 ngân hàng niêm yết** — tổng 109 mã — hoặc gõ mã bất kỳ (tối đa 10 mã/lần).
+  Đổi sang rổ khác (VN30, VNX50...): sửa `BASKET_GROUP` và `BASKET_FALLBACK` trong `symbols.py`.
 - Giá realtime, % thay đổi, khối lượng, cao/thấp phiên, vốn hóa (khi nguồn có số liệu).
 - Phân tích dùng giá realtime trong phiên (ghép vào nến cuối), khớp với giá đang hiển thị.
 - Biểu đồ nến + MA20/50/200 + Bollinger + hỗ trợ/kháng cự, khối lượng, RSI, MACD.
@@ -27,7 +28,7 @@ Dữ liệu lấy trực tiếp từ API công khai của **SSI iBoard** (lịch
 | `data.py` | Gọi API SSI (thử lại khi lỗi mạng, chuẩn hóa đơn vị nghìn đồng) |
 | `indicators.py` | Tính chỉ báo kỹ thuật bằng pandas thuần |
 | `analysis.py` | Chấm điểm tín hiệu, sinh nhận định |
-| `symbols.py` | Rổ VNX50 dự phòng, danh sách ngân hàng; kiểm tra mã người dùng nhập |
+| `symbols.py` | Rổ chỉ số (VN100) + danh sách dự phòng, danh sách ngân hàng; kiểm tra mã người dùng nhập |
 | `tools/make_prompt_docx.py` | Tạo lại `prompt.docx` (`python tools/make_prompt_docx.py`) |
 | `tests/` | Kiểm thử đầu vào (`python -m pytest -q`) |
 | `Dockerfile`, `deploy/` | Đóng gói Docker, cấu hình Nginx & script triển khai VPS |

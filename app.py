@@ -1,4 +1,4 @@
-"""Dashboard phân tích kỹ thuật cổ phiếu VN50 & Ngân hàng. Chạy: streamlit run app.py"""
+"""Dashboard phân tích kỹ thuật cổ phiếu VN100 & Ngân hàng. Chạy: streamlit run app.py"""
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -12,9 +12,11 @@ from plotly.subplots import make_subplots
 from analysis import analyze
 from data import NETWORK_ERROR, fetch_group, fetch_history, fetch_quote, merge_quote
 from indicators import add_indicators, support_resistance
-from symbols import BANKS, DEFAULT_SYMBOLS, VN50_FALLBACK, VN50_GROUP, is_bank, parse_symbols
+from symbols import (BANKS, BASKET_FALLBACK, BASKET_GROUP, BASKET_MIN_SIZE, DEFAULT_SYMBOLS, is_bank,
+                     parse_symbols)
 
-st.set_page_config(page_title="Phân tích CK VN50 & Ngân hàng", page_icon="📈", layout="wide")
+APP_NAME = f"{BASKET_GROUP} & Ngân hàng"
+st.set_page_config(page_title=f"Phân tích CK {APP_NAME}", page_icon="📈", layout="wide")
 
 VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 CACHE_TTL = 300  # giây: dữ liệu tự làm mới sau 5 phút
@@ -57,12 +59,12 @@ def _load_one(symbol: str) -> dict:
 
 @st.cache_data(ttl=BASKET_TTL, show_spinner=False)
 def _load_basket_cached() -> tuple[list, bool]:
-    symbols, err = fetch_group(VN50_GROUP)
-    return (symbols, True) if symbols else (VN50_FALLBACK, False)
+    symbols, err = fetch_group(BASKET_GROUP, min_size=BASKET_MIN_SIZE)
+    return (symbols, True) if symbols else (BASKET_FALLBACK, False)
 
 
 def load_basket() -> tuple[list, bool]:
-    """Thành phần rổ VN50 (VNX50) từ SSI; lỗi thì dùng danh sách dự phòng và thử lại ở lần sau."""
+    """Thành phần rổ chỉ số từ SSI; lỗi thì dùng danh sách dự phòng và thử lại ở lần sau."""
     symbols, live = _load_basket_cached()
     if not live:
         _load_basket_cached.clear()
@@ -249,7 +251,7 @@ all_symbols = sorted(set(basket) | set(BANKS))
 with st.sidebar:
     st.header("Chọn cổ phiếu")
     selected = st.multiselect(
-        "Rổ VN50 & Ngân hàng",
+        f"Rổ {APP_NAME}",
         all_symbols,
         # mã mặc định phải nằm trong danh sách, nếu không Streamlit báo lỗi
         default=[s for s in DEFAULT_SYMBOLS if s in all_symbols],
@@ -257,7 +259,7 @@ with st.sidebar:
         placeholder="Chọn mã...",
     )
     st.caption(
-        f"Rổ VN50 = chỉ số {VN50_GROUP} ({len(basket)} mã), "
+        f"Rổ chỉ số {BASKET_GROUP}: {len(basket)} mã, "
         + ("cập nhật từ SSI." if basket_live else "dùng danh sách lưu sẵn (chưa kết nối được SSI).")
     )
     typed = st.text_input("Hoặc nhập mã khác", placeholder="VD: TCB, MWG")
@@ -267,7 +269,7 @@ with st.sidebar:
     st.caption(f"Tối đa {MAX_SYMBOLS} mã mỗi lần. Dữ liệu tự làm mới sau {CACHE_TTL // 60} phút.")
 
 st.html(METRIC_CSS)
-st.title("📈 Phân tích cổ phiếu VN50 & Ngân hàng")
+st.title(f"📈 Phân tích cổ phiếu {APP_NAME}")
 st.caption(DISCLAIMER)
 
 symbols, invalid = parse_symbols(selected, typed)

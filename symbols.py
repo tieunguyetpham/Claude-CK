@@ -1,16 +1,23 @@
-"""Danh sách mã cổ phiếu: rổ VN50 (chỉ số VNX50 — 50 mã lớn nhất HOSE + HNX) và nhóm ngân hàng."""
+"""Danh sách mã cổ phiếu: rổ chỉ số VN100 (100 mã vốn hóa lớn nhất HOSE) và nhóm ngân hàng."""
 
 import re
 
-# Rổ VN50 lấy trực tiếp từ SSI (nhóm VNX50) để tự cập nhật khi rổ được cơ cấu lại.
-# Danh sách dưới đây chỉ dùng dự phòng khi API lỗi — thành phần VNX50 tại ngày 07/10/2026.
-VN50_GROUP = "VNX50"
-VN50_FALLBACK = [
-    "ACB", "BID", "BSR", "CTG", "DCM", "DPM", "DXG", "EIB", "FPT", "FRT",
-    "GEE", "GEX", "GMD", "HCM", "HDB", "HPG", "IDC", "KBC", "KDH", "LPB",
-    "MBB", "MSB", "MSN", "MWG", "NLG", "NVL", "PDR", "PLX", "PNJ", "POW",
-    "PVS", "SHB", "SHS", "SSI", "STB", "TCB", "TPB", "VCB", "VCG", "VCI",
-    "VHM", "VIB", "VIC", "VIX", "VJC", "VND", "VNM", "VPB", "VPI", "VRE",
+# Rổ chỉ số lấy trực tiếp từ SSI để tự cập nhật khi rổ được cơ cấu lại.
+# Đổi rổ (VN30, VNX50, VN100...) chỉ cần sửa BASKET_GROUP và danh sách dự phòng.
+BASKET_GROUP = "VN100"
+BASKET_MIN_SIZE = 80  # SSI trả ít hơn số này -> coi như lỗi, dùng danh sách dự phòng
+# Chỉ dùng dự phòng khi API lỗi — thành phần VN100 tại ngày 07/10/2026.
+BASKET_FALLBACK = [
+    "ACB", "ANV", "BAF", "BCM", "BID", "BMP", "BSI", "BSR", "BVH", "BWE",
+    "CII", "CMG", "CTD", "CTG", "CTR", "CTS", "DBC", "DCM", "DGW", "DIG",
+    "DPM", "DSE", "DXG", "EIB", "EVF", "FPT", "FRT", "FTS", "GAS", "GEE",
+    "GEX", "GMD", "GVR", "HAG", "HCM", "HDB", "HDG", "HHV", "HPG", "HSG",
+    "HT1", "KBC", "KDC", "KDH", "KOS", "LPB", "MBB", "MCH", "MSB", "MSN",
+    "MWG", "NAB", "NKG", "NLG", "NT2", "NVL", "OCB", "PAN", "PC1", "PDR",
+    "PHR", "PLX", "PNJ", "POW", "PVD", "PVT", "REE", "SAB", "SBT", "SHB",
+    "SIP", "SJS", "SSB", "SSI", "STB", "TAL", "TCB", "TCH", "TCX", "TPB",
+    "VCB", "VCG", "VCI", "VCK", "VGC", "VHC", "VHM", "VIB", "VIC", "VIX",
+    "VJC", "VND", "VNM", "VPB", "VPI", "VPL", "VPX", "VRE", "VSC", "VTP",
 ]
 
 # Ngân hàng niêm yết (HOSE, HNX, UPCoM)

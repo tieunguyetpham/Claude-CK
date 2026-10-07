@@ -30,7 +30,7 @@ def fake_rows(n):
 )
 def test_fetch_group_payloads(monkeypatch, payload, ok):
     monkeypatch.setattr(data, "_get_json", lambda *a, **k: payload)
-    symbols, err = fetch_group("VNX50")
+    symbols, err = fetch_group("VN100")
     assert (symbols is not None) == ok
     assert (err is None) == ok
 
@@ -39,7 +39,7 @@ def test_fetch_group_cleans_symbols(monkeypatch):
     rows = fake_rows(25)["data"] + [{"stockSymbol": "acb"}, {"stockSymbol": "A00"}, {"stockSymbol": "<x>"},
                                     {"stockSymbol": None}, {}, "rác"]
     monkeypatch.setattr(data, "_get_json", lambda *a, **k: {"data": rows})
-    symbols, err = fetch_group("VNX50")
+    symbols, err = fetch_group("VN100")
     assert err is None
     assert "ACB" in symbols and "<X>" not in symbols and "NONE" not in symbols
     assert symbols == sorted(set(symbols))
@@ -50,7 +50,7 @@ def test_fetch_group_network_error(monkeypatch):
         raise RuntimeError(f"{data.NETWORK_ERROR} (ConnectionError)")
 
     monkeypatch.setattr(data, "_get_json", boom)
-    symbols, err = fetch_group("VNX50")
+    symbols, err = fetch_group("VN100")
     assert symbols is None and err.startswith(data.NETWORK_ERROR)
 
 

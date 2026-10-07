@@ -13,7 +13,7 @@ style = doc.styles["Normal"]
 style.font.name = "Arial"
 style.font.size = Pt(11)
 
-title = doc.add_heading("PROMPT: Xây phần mềm web phân tích chứng khoán VN50 & Ngân hàng", level=0)
+title = doc.add_heading("PROMPT: Xây phần mềm web phân tích chứng khoán VN100 & Ngân hàng", level=0)
 title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 meta = doc.add_paragraph("Phiên bản cập nhật 07/10/2026 · Repo: https://github.com/tieunguyetpham/Claude-CK · "
                          "Triển khai: https://trading.tieunguyetpham.store")
@@ -91,11 +91,13 @@ bullets([
 
 h("3. Danh sách mã")
 bullets([
-    "Rổ VN50 = chỉ số VNX50 (50 mã lớn nhất HOSE + HNX). SSI không có nhóm tên \"VN50\" (trả rỗng). Lấy thành phần "
-    "trực tiếp: GET https://iboard-query.ssi.com.vn/stock/group/VNX50 → data[].stockSymbol; cache 6 giờ để tự cập nhật "
-    "khi rổ cơ cấu lại. Kèm danh sách dự phòng (snapshot) khi API lỗi; không lưu cache khi phải dùng dự phòng.",
-    "Lọc kết quả rổ: chỉ nhận chuỗi 3–10 ký tự A–Z/0–9 (giá trị None không được thành mã \"NONE\"); dưới 20 mã coi như lỗi.",
+    "Rổ chỉ số VN100 (100 mã vốn hóa lớn nhất HOSE). Lấy thành phần trực tiếp: GET "
+    "https://iboard-query.ssi.com.vn/stock/group/VN100 → data[].stockSymbol; cache 6 giờ để tự cập nhật khi rổ cơ cấu "
+    "lại. Kèm danh sách dự phòng (snapshot) khi API lỗi; không lưu cache khi phải dùng dự phòng. Tên rổ là một hằng số "
+    "(BASKET_GROUP) để đổi sang VN30, VNX50... chỉ sửa một chỗ. Lưu ý: SSI không có nhóm tên \"VN50\" (trả rỗng).",
+    "Lọc kết quả rổ: chỉ nhận chuỗi 3–10 ký tự A–Z/0–9 (giá trị None không được thành mã \"NONE\"); dưới 80 mã coi như lỗi.",
     "Không tự soạn tay danh sách rổ chỉ số: danh sách tự soạn dễ lỗi thời (đã kiểm chứng lệch 11/50 mã so với VNX50).",
+    "Mã mới niêm yết chưa đủ 200 phiên (VD: VCK) vẫn phân tích được, chỉ bỏ qua tín hiệu MA200.",
     "Nhóm ngân hàng (27 mã, HOSE/HNX/UPCoM): VCB, BID, CTG, TCB, MBB, ACB, VPB, HDB, STB, TPB, SHB, VIB, LPB, SSB, "
     "EIB, MSB, OCB, NAB, ABB, BVB, KLB, VAB, BAB, SGB, PGB, NVB, VBB.",
     "Mã mặc định trong ô chọn phải thuộc danh sách lựa chọn (nếu không Streamlit báo lỗi).",
@@ -112,7 +114,7 @@ bullets([
 
 h("5. Giao diện (Streamlit)")
 bullets([
-    "Thanh bên: multiselect rổ VN50 & ngân hàng (đánh dấu mã ngân hàng), ô nhập mã khác, chọn khoảng "
+    "Thanh bên: multiselect rổ VN100 & ngân hàng (109 mã, đánh dấu mã ngân hàng), ô nhập mã khác, chọn khoảng "
     "3 tháng / 6 tháng / 1 năm / 2 năm, nút \"Làm mới dữ liệu\".",
     "Đầu trang: tiêu đề, cảnh báo miễn trừ trách nhiệm, thời điểm lấy dữ liệu + nguồn.",
     "Nhiều mã: bảng so sánh nhanh, cột quan trọng trước để không bị khuất trên điện thoại: mã, nhận định, giá, "
@@ -159,7 +161,7 @@ code("app.py            giao diện Streamlit\n"
      "data.py           gọi API SSI, thử lại, chuẩn hóa đơn vị\n"
      "indicators.py     chỉ báo kỹ thuật\n"
      "analysis.py       chấm điểm & nhận định\n"
-     "symbols.py        danh sách VN50/ngân hàng, kiểm tra mã nhập\n"
+     "symbols.py        rổ chỉ số (VN100) + dự phòng, danh sách ngân hàng, kiểm tra mã nhập\n"
      "tests/            pytest cho đầu vào và dữ liệu bất thường\n"
      "requirements.txt  khóa phiên bản đã kiểm thử (Python >= 3.11)\n"
      "Dockerfile        đóng gói app (python:3.12-slim, user không phải root, healthcheck)\n"
@@ -168,7 +170,8 @@ code("app.py            giao diện Streamlit\n"
 
 h("10. Kiểm thử trước khi bàn giao")
 bullets([
-    "Quét toàn bộ mã VNX50 + ngân hàng: lấy được dữ liệu, ngày mới nhất, giá realtime khớp biểu đồ, không có giá ≤ 0.",
+    "Quét toàn bộ mã VN100 + ngân hàng (109 mã): lấy được dữ liệu, ngày mới nhất, giá realtime khớp biểu đồ, "
+    "không có giá ≤ 0.",
     "Giả lập tình huống biên trên giao diện: báo giá lỗi nhưng có lịch sử; mã mới niêm yết 1, 2, 30 phiên; không lấy "
     "được thành phần rổ (dùng dự phòng, lần sau thử lại).",
     "pytest cho: chuỗi rỗng, chữ thường, trùng mã, ký tự đặc biệt, chữ có dấu, chuỗi dài; dữ liệu 1 phiên, 2 phiên, "
