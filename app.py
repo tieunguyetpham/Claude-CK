@@ -26,6 +26,14 @@ DISCLAIMER = (
     "Nhà đầu tư tự chịu trách nhiệm với quyết định của mình."
 )
 UP, DOWN = "#16a34a", "#dc2626"
+# Cỡ chữ ô chỉ số co theo độ rộng chính ô đó (container query) -> không tràn chữ trên màn hình hẹp
+METRIC_CSS = """<style>
+[data-testid="stMetric"] { container-type: inline-size; }
+[data-testid="stMetricValue"], [data-testid="stMetricValue"] > div {
+  font-size: 1.6rem;
+  font-size: clamp(1.05rem, 14cqi, 2.25rem);
+}
+</style>"""
 
 
 # ---------------------------------------------------------------- dữ liệu
@@ -235,6 +243,7 @@ with st.sidebar:
         _load_many_cached.clear()
     st.caption(f"Tối đa {MAX_SYMBOLS} mã mỗi lần. Dữ liệu tự làm mới sau {CACHE_TTL // 60} phút.")
 
+st.html(METRIC_CSS)
 st.title("📈 Phân tích cổ phiếu VN50 & Ngân hàng")
 st.caption(DISCLAIMER)
 
