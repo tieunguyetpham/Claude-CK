@@ -94,6 +94,10 @@ Nginx của ppmeeting chuyển tiếp tên miền con `trading.tieunguyetpham.st
 
 - **Cập nhật phiên bản mới**: `bash /opt/Claude-CK/deploy/deploy.sh` (tự `git pull`, build lại, chờ app sẵn sàng).
 - **Xem log**: `sudo docker logs -f --tail 100 trading-app` · **Khởi động lại**: `sudo docker restart trading-app`
+- **Dung lượng**: app chiếm khoảng 1.7 GB (image + build cache), tăng thêm khoảng 0.7 GB mỗi lần đổi phiên bản thư viện.
+  `deploy.sh` cảnh báo khi ổ đĩa ≥ 85%; khi đó dọn build cache cũ: `sudo docker builder prune -f --filter until=168h`
+  (áp dụng cho cả cache build của ppmeeting — chỉ là cache, không ảnh hưởng image hay dữ liệu).
+- Tự phục hồi: Docker bật cùng VPS, container `restart: unless-stopped`, giới hạn 512 MB RAM, log xoay vòng 3 × 10 MB.
 - Container trading dừng không ảnh hưởng ppmeeting (Nginx phân giải tên container lúc có request).
 - Lưu ý: khi chạy `docker compose down` cho ppmeeting, hãy dừng trading trước
   (`sudo docker compose -f /opt/Claude-CK/deploy/docker-compose.yml down`) vì hai bên dùng chung mạng `ppmeeting_default`.

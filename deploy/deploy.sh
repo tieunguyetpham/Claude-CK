@@ -27,4 +27,11 @@ fi
 
 # Chỉ dọn image cũ của project trading, không đụng image của ppmeeting
 sudo docker image prune -f --filter "label=app=trading-app" >/dev/null
-echo "==> Xong: https://trading.tieunguyetpham.store"
+
+# Build cache của Docker dùng chung toàn VPS (cả ppmeeting) nên không tự dọn, chỉ cảnh báo khi đĩa gần đầy
+disk_used=$(df --output=pcent / | tail -1 | tr -dc '0-9')
+if (( disk_used >= 85 )); then
+    echo "!! Ổ đĩa đã dùng ${disk_used}%. Dọn build cache cũ hơn 7 ngày (chỉ là cache, không xóa image/dữ liệu):"
+    echo "     sudo docker builder prune -f --filter until=168h"
+fi
+echo "==> Xong: https://trading.tieunguyetpham.store (ổ đĩa: ${disk_used}%)"
