@@ -100,7 +100,8 @@ def fetch_history(symbol: str, days: int = 1100) -> tuple[pd.DataFrame | None, s
     except (KeyError, ValueError) as e:
         return None, f"Dữ liệu mã {symbol} không hợp lệ ({e.__class__.__name__})"
 
-    df = df.apply(pd.to_numeric, errors="coerce").dropna(subset=["close"])
+    # ép float64: SSI có thể trả số nguyên (57) -> cột int64, ghép giá lẻ realtime sẽ lỗi
+    df = df.apply(pd.to_numeric, errors="coerce").astype("float64").dropna(subset=["close"])
     df = df[~df.index.duplicated(keep="last")].sort_index()
     df.index.name = "date"
     if df.empty:

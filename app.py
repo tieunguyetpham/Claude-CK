@@ -21,6 +21,7 @@ st.set_page_config(page_title=f"Phân tích CK {APP_NAME}", page_icon="📈", la
 VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 CACHE_TTL = 300  # giây: dữ liệu tự làm mới sau 5 phút
 BASKET_TTL = 6 * 3600  # thành phần rổ ít thay đổi
+RETRY_AFTER = 30  # giây: kết quả lỗi mạng giữ tạm ngần này rồi mới thử lại (không gọi lại SSI mỗi cú click)
 MAX_CACHE_ENTRIES = 64  # giới hạn RAM: mỗi mục (≤10 mã) khoảng 1–2 MB
 MAX_SYMBOLS = 10
 PERIODS = {"3 tháng": 90, "6 tháng": 180, "1 năm": 365, "2 năm": 730}
@@ -44,12 +45,13 @@ def _load_one(symbol: str) -> dict:
     df, err = fetch_history(symbol)
     if err:
         return {"error": err}
-    quote, _ = fetch_quote(symbol)  # báo giá là phần bổ sung, lỗi thì vẫn phân tích được
+    quote, quote_err = fetch_quote(symbol)  # báo giá là phần bổ sung, lỗi thì vẫn phân tích được
     try:
         ind = add_indicators(merge_quote(df, quote))
         return {
             "df": ind,
             "quote": quote,
+            "quote_error": quote_err,
             "analysis": analyze(symbol, ind),
             "levels": support_resistance(ind),
         }
@@ -57,18 +59,23 @@ def _load_one(symbol: str) -> dict:
         return {"error": f"Lỗi khi phân tích {symbol}: {e}"}
 
 
+def _expired(fetched_at: datetime) -> bool:
+    return (datetime.now(VN_TZ) - fetched_at).total_seconds() > RETRY_AFTER
+
+
 @st.cache_data(ttl=BASKET_TTL, show_spinner=False)
-def _load_basket_cached() -> tuple[list, bool]:
-    symbols, err = fetch_group(BASKET_GROUP, min_size=BASKET_MIN_SIZE)
-    return (symbols, True) if symbols else (BASKET_FALLBACK, False)
+def _load_basket_cached() -> tuple[list | None, datetime]:
+    symbols, _ = fetch_group(BASKET_GROUP, min_size=BASKET_MIN_SIZE)
+    return symbols, datetime.now(VN_TZ)
 
 
 def load_basket() -> tuple[list, bool]:
-    """Thành phần rổ chỉ số từ SSI; lỗi thì dùng danh sách dự phòng và thử lại ở lần sau."""
-    symbols, live = _load_basket_cached()
-    if not live:
+    """Thành phần rổ chỉ số từ SSI; lỗi thì dùng danh sách dự phòng, thử lại sau RETRY_AFTER giây."""
+    symbols, fetched_at = _load_basket_cached()
+    if symbols is None and _expired(fetched_at):
         _load_basket_cached.clear()
-    return symbols, live
+        symbols, fetched_at = _load_basket_cached()
+    return (symbols, True) if symbols else (BASKET_FALLBACK, False)
 
 
 @st.cache_data(ttl=CACHE_TTL, max_entries=MAX_CACHE_ENTRIES, show_spinner=False)
@@ -78,11 +85,19 @@ def _load_many_cached(symbols: tuple) -> tuple[dict, datetime]:
     return dict(zip(symbols, results)), datetime.now(VN_TZ)
 
 
+def _has_network_error(results: dict) -> bool:
+    return any(
+        (r.get("error") or "").startswith(NETWORK_ERROR) or (r.get("quote_error") or "").startswith(NETWORK_ERROR)
+        for r in results.values()
+    )
+
+
 def load_many(symbols: tuple) -> tuple[dict, datetime]:
     results, fetched_at = _load_many_cached(symbols)
-    # Lỗi mạng là tạm thời: bỏ khỏi cache để lần tải sau thử lại ngay
-    if any(r.get("error", "").startswith(NETWORK_ERROR) for r in results.values()):
+    # Lỗi mạng là tạm thời: sau RETRY_AFTER giây thì tải lại thay vì giữ lỗi suốt 5 phút
+    if _has_network_error(results) and _expired(fetched_at):
         _load_many_cached.clear(symbols)
+        results, fetched_at = _load_many_cached(symbols)
     return results, fetched_at
 
 

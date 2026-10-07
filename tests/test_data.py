@@ -113,6 +113,26 @@ def test_skip_cases():
         assert merge_quote(df, q).equals(df)
 
 
+def test_integer_price_columns(monkeypatch):
+    """SSI có thể trả giá dạng số nguyên (57 thay vì 57.0) -> cột int64; ghép giá lẻ không được lỗi."""
+    payload = {"data": {"t": [1790553600, 1790640000], "o": [57, 58], "h": [58, 59], "l": [56, 57],
+                        "c": [57, 58], "v": [1000, 1200]}}
+    monkeypatch.setattr(data, "_get_json", lambda *a, **k: payload)
+    df, err = data.fetch_history("VCB")
+    assert err is None
+    assert all(df[c].dtype == "float64" for c in ["open", "high", "low", "close", "volume"])
+    day = df.index[-1].strftime("%d/%m/%Y")
+    out = merge_quote(df, quote(trading_date=day, price=58.3, open=57.9, high=58.4, low=57.8))
+    assert out.iloc[-1]["close"] == 58.3
+
+
+def test_merge_keeps_index_name():
+    df = history()
+    df.index.name = "date"
+    assert merge_quote(df, quote()).index.name == "date"                         # thêm phiên mới
+    assert merge_quote(df, quote(trading_date="06/10/2026")).index.name == "date"  # cập nhật phiên
+
+
 def test_empty_history():
     assert merge_quote(pd.DataFrame(), quote()).empty
     assert merge_quote(None, quote()) is None

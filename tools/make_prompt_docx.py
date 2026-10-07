@@ -84,8 +84,10 @@ bullets([
     "Lấy khoảng 3 năm lịch sử để MA200 đủ dữ liệu, chỉ cắt theo khoảng thời gian người dùng chọn khi vẽ.",
     "Ghép báo giá realtime vào nến cuối (thêm nến phiên hôm nay hoặc cập nhật nến cùng ngày) để phân tích luôn dùng "
     "giá mới nhất trong phiên, khớp với giá đang hiển thị.",
-    "Cache bằng st.cache_data (TTL 5 phút, giới hạn 64 mục để không phình RAM khi nhiều người dùng) nhưng KHÔNG lưu "
-    "cache kết quả lỗi mạng (lỗi tạm thời phải thử lại ngay).",
+    "Cache bằng st.cache_data (TTL 5 phút, giới hạn 64 mục để không phình RAM khi nhiều người dùng). Kết quả có lỗi mạng "
+    "(kể cả lỗi báo giá) chỉ giữ 30 giây rồi tự thử lại: không giữ lỗi suốt 5 phút, nhưng cũng không gọi lại SSI ở mỗi "
+    "cú click (mỗi lần thử có thể tới ~47 giây khi SSI sập). Nút \"Làm mới dữ liệu\" thử lại ngay.",
+    "Ép các cột giá/khối lượng về float64: SSI có thể trả số nguyên (57 thay vì 57.0), cột int64 sẽ lỗi khi ghép giá lẻ.",
     "Tải nhiều mã song song bằng ThreadPoolExecutor; mỗi luồng dùng requests.Session riêng (threading.local).",
 ])
 
@@ -143,6 +145,8 @@ bullets([
     "trong 3 phiên); giá so với MA200; RSI (<30 quá bán, >70 quá mua); MACD so với signal (ưu tiên giao cắt); "
     "Bollinger (thủng dải dưới / vượt dải trên); Stochastic (vùng quá bán/quá mua có giao cắt); khối lượng đột biến "
     ">1,5 lần TB20 theo chiều giá.",
+    "Phát hiện giao cắt phải lấy lần cắt GẦN NHẤT trong cửa sổ (cắt lên rồi cắt xuống → tín hiệu hiện tại là cắt "
+    "xuống). Stochastic chỉ chấm \"cắt lên/cắt xuống %D\" khi thực sự có giao cắt trong 2 phiên, không chấm theo vị trí.",
     "Tổng điểm ≥ +3 → MUA; ≤ −3 → BÁN; còn lại → GIỮ. Hiển thị lý do từng tín hiệu.",
     "ADX ≥ 25: xu hướng mạnh, tín hiệu đáng tin hơn; < 25: xu hướng yếu/đi ngang, nên thận trọng (không cộng điểm).",
     "Cổ phiếu ngân hàng: ghi chú định giá theo P/B, ROE; nhạy với lãi suất, tăng trưởng tín dụng, nợ xấu.",
@@ -177,7 +181,9 @@ bullets([
     "pytest cho: chuỗi rỗng, chữ thường, trùng mã, ký tự đặc biệt, chữ có dấu, chuỗi dài; dữ liệu 1 phiên, 2 phiên, "
     "giá đứng yên, chỉ tăng, chỉ giảm, khối lượng 0; ghép báo giá realtime (phiên mới, cùng phiên, báo giá cũ, "
     "chưa khớp lệnh, ngày sai định dạng).",
-    "Giả lập mất mạng: app báo lỗi rõ ràng; có mạng lại thì tải được ngay, không bị kẹt lỗi trong cache.",
+    "Giả lập SSI sập: app báo lỗi rõ ràng, dùng danh sách rổ dự phòng; các cú click trong 30 giây không gọi lại SSI "
+    "(đếm số lần gọi); sau 30 giây hoặc khi bấm \"Làm mới\" thì tự phục hồi.",
+    "Nhờ một agent độc lập rà soát code với con mắt mới; mỗi lỗi được báo phải tái hiện bằng test thất bại trước khi sửa.",
     "streamlit.testing AppTest cho các kịch bản giao diện (mặc định, mã sai, không chọn mã, quá 10 mã, đổi khoảng thời gian).",
     "Chạy app thật, kiểm tra trình duyệt không có lỗi console, log server sạch.",
 ])
@@ -207,7 +213,8 @@ bullets([
     "thủ công, không truyền --pre-hook/--post-hook (tránh certbot lưu hook trùng); hook post luôn chạy kể cả khi lỗi.",
     "Nginx: sao lưu nginx.conf, thêm một server block server_name trading.tieunguyetpham.store dùng chung chứng chỉ; "
     "proxy tới http://trading-app:8501 qua biến và resolver 127.0.0.11 (Nginx vẫn khởi động khi trading-app dừng); "
-    "hỗ trợ WebSocket. nginx.conf được bind-mount dạng một file đơn → sửa bằng cách ghi đè nội dung (giữ inode), "
+    "hỗ trợ WebSocket; header HSTS, X-Content-Type-Options, X-Frame-Options SAMEORIGIN, Referrer-Policy. "
+    "nginx.conf được bind-mount dạng một file đơn → sửa bằng cách ghi đè nội dung (giữ inode), "
     "không dùng sed -i/mv. Thử nginx -t trên container tạm trước, rồi mới nginx -t và nginx -s reload thật.",
     "deploy/deploy.sh dùng để cập nhật: git pull → docker compose up -d --build → chờ healthy → chỉ dọn image cũ "
     "có nhãn app=trading-app (không đụng image của ppmeeting).",

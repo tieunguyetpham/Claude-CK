@@ -15,14 +15,13 @@ def _ok(*values) -> bool:
 
 
 def _crossed(a: pd.Series, b: pd.Series, lookback: int = 3) -> int:
-    """+1 nếu a cắt lên b trong `lookback` phiên gần nhất, -1 nếu cắt xuống, 0 nếu không."""
+    """Hướng của lần giao cắt GẦN NHẤT trong `lookback` phiên: +1 cắt lên, -1 cắt xuống, 0 nếu không cắt."""
     diff = (a - b).dropna().tail(lookback + 1)
-    if len(diff) < 2:
-        return 0
-    signs = diff.apply(lambda x: 1 if x > 0 else -1)
-    for prev, cur in zip(signs.iloc[:-1], signs.iloc[1:]):
-        if prev != cur:
-            return cur
+    signs = [1 if x > 0 else -1 for x in diff]
+    # duyệt từ phiên mới nhất về trước: cắt lên rồi cắt xuống thì tín hiệu hiện tại là cắt xuống
+    for i in range(len(signs) - 1, 0, -1):
+        if signs[i] != signs[i - 1]:
+            return signs[i]
     return 0
 
 
@@ -93,10 +92,11 @@ def analyze(symbol: str, df: pd.DataFrame) -> dict:
     # 5. Stochastic
     k, d = last["STOCH_K"], last["STOCH_D"]
     if _ok(k, d):
-        if k < 20 and k > d:
-            add(1, f"Stochastic %K = {k:.0f} vùng quá bán và cắt lên %D → tín hiệu mua")
-        elif k > 80 and k < d:
-            add(-1, f"Stochastic %K = {k:.0f} vùng quá mua và cắt xuống %D → tín hiệu bán")
+        cross = _crossed(df["STOCH_K"], df["STOCH_D"], lookback=2)  # chỉ tính giao cắt thật, không phải vị trí
+        if k < 20 and cross == 1:
+            add(1, f"Stochastic %K = {k:.0f} vùng quá bán và vừa cắt lên %D → tín hiệu mua")
+        elif k > 80 and cross == -1:
+            add(-1, f"Stochastic %K = {k:.0f} vùng quá mua và vừa cắt xuống %D → tín hiệu bán")
         elif k < 20:
             add(0, f"Stochastic %K = {k:.0f} vùng quá bán, chưa có tín hiệu đảo chiều")
         elif k > 80:
