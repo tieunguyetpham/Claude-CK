@@ -180,7 +180,8 @@ bullets([
     "Đóng gói app bằng Dockerfile; chạy container riêng trading-app qua deploy/docker-compose.yml, giới hạn 512 MB RAM, "
     "restart unless-stopped, healthcheck /_stcore/health, nối vào mạng có sẵn ppmeeting_default (external).",
     "DNS: bản ghi A trading.tieunguyetpham.store → 116.118.6.222.",
-    "Repo Private: tạo deploy key chỉ-đọc trên VPS, thêm vào GitHub (Settings → Deploy keys), clone vào /opt/Claude-CK.",
+    "Repo GitHub để Public (đã rà soát không có bí mật, email tác giả dùng địa chỉ ẩn danh noreply của GitHub); "
+    "VPS git clone qua HTTPS vào /opt/Claude-CK, không cần khóa truy cập.",
     "HTTPS: bổ sung trading.tieunguyetpham.store vào chứng chỉ sẵn có (certbot certonly --standalone --expand "
     "--cert-name tieunguyetpham.store, dùng lại các hook của ppmeeting) để cơ chế tự gia hạn tiếp tục hoạt động.",
     "Nginx: sao lưu nginx.conf, thêm một server block server_name trading.tieunguyetpham.store dùng chung chứng chỉ; "

@@ -51,19 +51,11 @@ Nginx của ppmeeting chuyển tiếp tên miền con `trading.tieunguyetpham.st
 ### Cài lần đầu (một lần)
 
 1. **DNS**: bản ghi `A` của `trading.tieunguyetpham.store` trỏ về `116.118.6.222` (đã có).
-2. **Quyền đọc repo** (repo Private): tạo deploy key chỉ-đọc trên VPS và thêm vào GitHub → *Settings → Deploy keys*.
+2. **Tải code** (repo Public, không cần đăng nhập):
    ```bash
-   ssh-keygen -t ed25519 -N "" -C "vps-deploy-Claude-CK" -f ~/.ssh/claude_ck_deploy
+   sudo mkdir -p /opt/Claude-CK && sudo chown $USER: /opt/Claude-CK
+   git clone https://github.com/tieunguyetpham/Claude-CK.git /opt/Claude-CK
    ```
-   Trong `~/.ssh/config` của VPS:
-   ```
-   Host github-claude-ck
-       HostName github.com
-       User git
-       IdentityFile ~/.ssh/claude_ck_deploy
-       IdentitiesOnly yes
-   ```
-   Rồi: `sudo mkdir -p /opt/Claude-CK && sudo chown $USER: /opt/Claude-CK && git clone git@github-claude-ck:tieunguyetpham/Claude-CK.git /opt/Claude-CK`
 3. **Chạy app**: `bash /opt/Claude-CK/deploy/deploy.sh`
 4. **Chứng chỉ HTTPS**: bổ sung `trading` vào chứng chỉ có sẵn của ppmeeting (Nginx ppmeeting dừng vài giây để certbot dùng cổng 80):
    ```bash
