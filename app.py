@@ -162,7 +162,8 @@ def render_symbol(symbol: str, r: dict, days: int):
     c2.metric("Khối lượng", fmt(q.get("volume") or last["volume"], 0))
     high = q.get("high") or last["high"]
     low = q.get("low") or last["low"]
-    c3.metric("Cao / Thấp phiên", f"{fmt(high)} / {fmt(low)}")
+    # giá thấp đặt ở dòng phụ để giá trị ngắn, không bị cắt chữ trên màn hình hẹp
+    c3.metric("Cao / Thấp phiên", fmt(high), f"Thấp {fmt(low)}", delta_color="off", delta_arrow="off")
     c4.metric("Vốn hóa (tỷ đồng)", fmt(q.get("market_cap"), 0))
 
     rec = a["recommendation"]
@@ -198,13 +199,14 @@ def comparison_table(ok: dict) -> pd.DataFrame:
     for s, r in ok.items():
         price, change_pct = price_info(r)
         a = r["analysis"]
+        # cột quan trọng đặt trước để không bị khuất trên điện thoại
         rows.append({
             "Mã": s,
+            "Nhận định": a["recommendation"],
             "Giá": price,
             "Thay đổi (%)": change_pct,
-            "RSI": r["df"]["RSI"].iloc[-1],
             "Điểm": a["score"],
-            "Nhận định": a["recommendation"],
+            "RSI": r["df"]["RSI"].iloc[-1],
         })
     return pd.DataFrame(rows)
 
