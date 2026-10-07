@@ -25,5 +25,6 @@ if [[ "$status" != "healthy" ]]; then
     exit 1
 fi
 
-sudo docker image prune -f >/dev/null
+# Chỉ dọn image cũ của project trading, không đụng image của ppmeeting
+sudo docker image prune -f --filter "label=app=trading-app" >/dev/null
 echo "==> Xong: https://trading.tieunguyetpham.store"

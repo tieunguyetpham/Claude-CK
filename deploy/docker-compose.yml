@@ -6,6 +6,8 @@ services:
   trading-app:
     build:
       context: ..
+      labels:
+        app: trading-app
     container_name: trading-app
     restart: unless-stopped
     mem_limit: 512m

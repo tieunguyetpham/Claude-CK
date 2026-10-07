@@ -5,7 +5,9 @@
 Mọi hàm đều không ném lỗi ra ngoài: trả về (dữ liệu, None) hoặc (None, "thông báo lỗi").
 """
 
+import threading
 import time
+from datetime import datetime
 
 import pandas as pd
 import requests
@@ -18,9 +20,17 @@ HEADERS = {
 }
 TIMEOUT = 15
 RETRIES = 2
+# Lỗi mạng là lỗi tạm thời: giao diện không lưu cache kết quả có lỗi này
+NETWORK_ERROR = "Không kết nối được máy chủ dữ liệu"
 
-_session = requests.Session()
-_session.headers.update(HEADERS)
+_local = threading.local()  # mỗi luồng một Session (requests.Session không an toàn khi dùng chung)
+
+
+def _session() -> requests.Session:
+    if not hasattr(_local, "session"):
+        _local.session = requests.Session()
+        _local.session.headers.update(HEADERS)
+    return _local.session
 
 
 def _get_json(url: str, params: dict | None = None) -> dict:
@@ -28,14 +38,14 @@ def _get_json(url: str, params: dict | None = None) -> dict:
     last_err = None
     for attempt in range(RETRIES + 1):
         try:
-            resp = _session.get(url, params=params, timeout=TIMEOUT)
+            resp = _session().get(url, params=params, timeout=TIMEOUT)
             resp.raise_for_status()
             return resp.json()
         except (requests.RequestException, ValueError) as e:
             last_err = e
             if attempt < RETRIES:
                 time.sleep(0.8 * (attempt + 1))
-    raise RuntimeError(f"Không kết nối được máy chủ dữ liệu ({last_err.__class__.__name__})")
+    raise RuntimeError(f"{NETWORK_ERROR} ({last_err.__class__.__name__})")
 
 
 def fetch_history(symbol: str, days: int = 1100) -> tuple[pd.DataFrame | None, str | None]:
@@ -131,3 +141,33 @@ def fetch_quote(symbol: str) -> tuple[dict | None, str | None]:
         "trading_date": _format_date(d.get("tradingDate")),
     }
     return quote, None
+
+
+def merge_quote(df: pd.DataFrame, quote: dict | None) -> pd.DataFrame:
+    """Ghép báo giá realtime vào nến cuối để phân tích theo giá mới nhất trong phiên.
+
+    - Phiên hôm nay chưa có trong lịch sử -> thêm nến mới.
+    - Đã có -> cập nhật nến đó bằng số liệu realtime.
+    - Báo giá cũ hơn, chưa khớp lệnh (khối lượng 0) hoặc ngày không hợp lệ -> giữ nguyên.
+    """
+    if df is None or df.empty or not quote:
+        return df
+    price, volume = quote.get("price"), quote.get("volume")
+    if not price or not volume:
+        return df
+    try:
+        day = pd.Timestamp(datetime.strptime(quote.get("trading_date") or "", "%d/%m/%Y"))
+    except ValueError:
+        return df
+    if day < df.index[-1]:
+        return df
+
+    out = df.copy()
+    out.loc[day, ["open", "high", "low", "close", "volume"]] = [
+        quote.get("open") or price,
+        max(quote.get("high") or price, price),
+        min(quote.get("low") or price, price),
+        price,
+        float(volume),
+    ]
+    return out.sort_index()

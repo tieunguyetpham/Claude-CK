@@ -10,7 +10,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from analysis import analyze
-from data import fetch_history, fetch_quote
+from data import NETWORK_ERROR, fetch_history, fetch_quote, merge_quote
 from indicators import add_indicators, support_resistance
 from symbols import BANKS, VN50, is_bank, parse_symbols
 
@@ -35,7 +35,7 @@ def _load_one(symbol: str) -> dict:
         return {"error": err}
     quote, _ = fetch_quote(symbol)  # báo giá là phần bổ sung, lỗi thì vẫn phân tích được
     try:
-        ind = add_indicators(df)
+        ind = add_indicators(merge_quote(df, quote))
         return {
             "df": ind,
             "quote": quote,
@@ -47,10 +47,18 @@ def _load_one(symbol: str) -> dict:
 
 
 @st.cache_data(ttl=CACHE_TTL, show_spinner=False)
-def load_many(symbols: tuple) -> tuple[dict, datetime]:
+def _load_many_cached(symbols: tuple) -> tuple[dict, datetime]:
     with ThreadPoolExecutor(max_workers=min(8, len(symbols))) as pool:
         results = list(pool.map(_load_one, symbols))
     return dict(zip(symbols, results)), datetime.now(VN_TZ)
+
+
+def load_many(symbols: tuple) -> tuple[dict, datetime]:
+    results, fetched_at = _load_many_cached(symbols)
+    # Lỗi mạng là tạm thời: bỏ khỏi cache để lần tải sau thử lại ngay
+    if any(r.get("error", "").startswith(NETWORK_ERROR) for r in results.values()):
+        _load_many_cached.clear(symbols)
+    return results, fetched_at
 
 
 # ---------------------------------------------------------------- hiển thị
@@ -210,7 +218,7 @@ with st.sidebar:
     typed = st.text_input("Hoặc nhập mã khác", placeholder="VD: TCB, MWG")
     period = st.radio("Khoảng thời gian", list(PERIODS), index=2, horizontal=True)
     if st.button("🔄 Làm mới dữ liệu", width="stretch"):
-        load_many.clear()
+        _load_many_cached.clear()
     st.caption(f"Tối đa {MAX_SYMBOLS} mã mỗi lần. Dữ liệu tự làm mới sau {CACHE_TTL // 60} phút.")
 
 st.title("📈 Phân tích cổ phiếu VN50 & Ngân hàng")

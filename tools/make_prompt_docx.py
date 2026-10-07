@@ -82,7 +82,10 @@ bullets([
     "Ngoài giờ giao dịch matchedPrice có thể trống → dùng refPrice/priorClosePrice.",
     "listedShare = 0 với một số mã → vốn hóa hiển thị \"—\". API công khai không có P/E, P/B, EPS, ROE → không hiển thị.",
     "Lấy khoảng 3 năm lịch sử để MA200 đủ dữ liệu, chỉ cắt theo khoảng thời gian người dùng chọn khi vẽ.",
-    "Cache bằng st.cache_data (TTL 5 phút); tải nhiều mã song song bằng ThreadPoolExecutor.",
+    "Ghép báo giá realtime vào nến cuối (thêm nến phiên hôm nay hoặc cập nhật nến cùng ngày) để phân tích luôn dùng "
+    "giá mới nhất trong phiên, khớp với giá đang hiển thị.",
+    "Cache bằng st.cache_data (TTL 5 phút) nhưng KHÔNG lưu cache kết quả lỗi mạng (lỗi tạm thời phải thử lại ngay).",
+    "Tải nhiều mã song song bằng ThreadPoolExecutor; mỗi luồng dùng requests.Session riêng (threading.local).",
 ])
 
 h("3. Danh sách mã")
@@ -157,7 +160,9 @@ h("10. Kiểm thử trước khi bàn giao")
 bullets([
     "Quét toàn bộ mã VN50 + ngân hàng: lấy được dữ liệu, ngày mới nhất, giá realtime khớp biểu đồ, không có giá ≤ 0.",
     "pytest cho: chuỗi rỗng, chữ thường, trùng mã, ký tự đặc biệt, chữ có dấu, chuỗi dài; dữ liệu 1 phiên, 2 phiên, "
-    "giá đứng yên, chỉ tăng, chỉ giảm, khối lượng 0.",
+    "giá đứng yên, chỉ tăng, chỉ giảm, khối lượng 0; ghép báo giá realtime (phiên mới, cùng phiên, báo giá cũ, "
+    "chưa khớp lệnh, ngày sai định dạng).",
+    "Giả lập mất mạng: app báo lỗi rõ ràng; có mạng lại thì tải được ngay, không bị kẹt lỗi trong cache.",
     "streamlit.testing AppTest cho các kịch bản giao diện (mặc định, mã sai, không chọn mã, quá 10 mã, đổi khoảng thời gian).",
     "Chạy app thật, kiểm tra trình duyệt không có lỗi console, log server sạch.",
 ])
@@ -183,11 +188,14 @@ bullets([
     "Repo GitHub để Public (đã rà soát không có bí mật, email tác giả dùng địa chỉ ẩn danh noreply của GitHub); "
     "VPS git clone qua HTTPS vào /opt/Claude-CK, không cần khóa truy cập.",
     "HTTPS: bổ sung trading.tieunguyetpham.store vào chứng chỉ sẵn có (certbot certonly --standalone --expand "
-    "--cert-name tieunguyetpham.store, dùng lại các hook của ppmeeting) để cơ chế tự gia hạn tiếp tục hoạt động.",
+    "--cert-name tieunguyetpham.store) để cơ chế tự gia hạn tiếp tục hoạt động. Chạy hook pre/deploy/post của ppmeeting "
+    "thủ công, không truyền --pre-hook/--post-hook (tránh certbot lưu hook trùng); hook post luôn chạy kể cả khi lỗi.",
     "Nginx: sao lưu nginx.conf, thêm một server block server_name trading.tieunguyetpham.store dùng chung chứng chỉ; "
     "proxy tới http://trading-app:8501 qua biến và resolver 127.0.0.11 (Nginx vẫn khởi động khi trading-app dừng); "
-    "hỗ trợ WebSocket; kiểm tra nginx -t trước khi nginx -s reload.",
-    "deploy/deploy.sh dùng để cập nhật: git pull → docker compose up -d --build → chờ healthy → dọn image cũ.",
+    "hỗ trợ WebSocket. nginx.conf được bind-mount dạng một file đơn → sửa bằng cách ghi đè nội dung (giữ inode), "
+    "không dùng sed -i/mv. Thử nginx -t trên container tạm trước, rồi mới nginx -t và nginx -s reload thật.",
+    "deploy/deploy.sh dùng để cập nhật: git pull → docker compose up -d --build → chờ healthy → chỉ dọn image cũ "
+    "có nhãn app=trading-app (không đụng image của ppmeeting).",
     "Kiểm tra sau triển khai: trang trading chạy qua HTTPS, trang ppmeeting và /api/ vẫn hoạt động bình thường.",
 ])
 
