@@ -61,35 +61,14 @@ Nginx của ppmeeting chuyển tiếp tên miền con `trading.tieunguyetpham.st
    git clone https://github.com/tieunguyetpham/Claude-CK.git /opt/Claude-CK
    ```
 3. **Chạy app**: `bash /opt/Claude-CK/deploy/deploy.sh`
-4. **Chứng chỉ HTTPS**: bổ sung `trading` vào chứng chỉ có sẵn của ppmeeting. Nginx ppmeeting dừng vài giây để certbot dùng cổng 80.
-   Chạy hook của ppmeeting **thủ công** (không truyền `--pre-hook/--post-hook`, nếu không certbot sẽ lưu thêm hook trùng vào cấu hình gia hạn):
-   ```bash
-   H=/etc/letsencrypt/renewal-hooks
-   sudo $H/pre/ppmeeting.sh
-   sudo certbot certonly --standalone --cert-name tieunguyetpham.store --expand --non-interactive \
-     -d tieunguyetpham.store -d www.tieunguyetpham.store -d trading.tieunguyetpham.store \
-     && sudo $H/deploy/ppmeeting.sh
-   sudo $H/post/ppmeeting.sh   # luôn chạy để bật lại Nginx, kể cả khi certbot lỗi
-   ```
-   Các lần gia hạn sau dùng lại cơ chế tự động có sẵn của ppmeeting.
-5. **Nginx**: `nginx.conf` được gắn vào container dạng **một file đơn** → phải sửa **giữ nguyên file** (ghi đè nội dung bằng `cat >`/`tee`),
-   không dùng `sed -i`, `mv` hay trình soạn thảo tạo file mới (container sẽ vẫn đọc bản cũ).
-   ```bash
-   C=/opt/ppmeeting/infra/nginx/nginx.conf
-   sudo cp -p $C $C.bak-$(date +%Y%m%d-%H%M%S)            # sao lưu
-   # Chèn deploy/nginx-trading.conf ngay trước dấu } cuối cùng (đóng khối http)
-   sudo python3 - "$C" /opt/Claude-CK/deploy/nginx-trading.conf <<'PY' | sudo tee "$C.new" >/dev/null
-   import sys
-   conf, block = open(sys.argv[1]).read(), open(sys.argv[2]).read()
-   i = conf.rstrip().rfind("}")
-   sys.stdout.write(conf[:i] + block + conf[i:])
-   PY
-   sudo sh -c "cat $C.new > $C" && sudo rm $C.new             # ghi đè nội dung, giữ nguyên inode
-   sudo docker exec ppmeeting-nginx-1 nginx -t && sudo docker exec ppmeeting-nginx-1 nginx -s reload
-   ```
-   Nếu `nginx -t` báo lỗi: khôi phục bằng `sudo sh -c "cat $C.bak-... > $C"`.
-   Nếu sau này deploy lại ppmeeting từ mã nguồn gốc, nhớ thêm khối trading vào `infra/nginx/nginx.conf` của ppmeeting để không bị mất.
-6. Truy cập https://trading.tieunguyetpham.store
+4. **HTTPS và Nginx: không cần làm gì.** Script triển khai của ppmeeting tự lo
+   (biến `EXTRA_SITES`, mặc định `trading.tieunguyetpham.store=trading-app:8501`): mỗi lần deploy ppmeeting nó
+   sinh khối `server` cho trading (`/opt/ppmeeting/infra/nginx/extra.d/sites.conf`) và giữ tên `trading` trong chứng chỉ chung
+   (`/etc/letsencrypt/live/vmtc.tieunguyetpham.store`), tự gia hạn.
+   **Không sửa tay** `/opt/ppmeeting/infra/nginx/nginx.conf` — tệp này bị ghi đè mỗi lần deploy ppmeeting.
+   Muốn đổi tên miền/cổng của trading: đặt biến `EXTRA_SITES` trong repo ppmeeting (Settings → Variables) rồi chạy workflow **Deploy VPS**.
+   `deploy/nginx-trading.conf` chỉ còn để tham khảo.
+5. Truy cập https://trading.tieunguyetpham.store
 
 ### Vận hành
 
